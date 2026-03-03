@@ -1,5 +1,40 @@
 import type { MetadataParsed } from '../lib/metadataSchema';
 import type { RenderLayer } from '../model/renderTypes';
+// buildRenderLayers.ts 파일 상단(함수 밖)
+
+// type Vec2 = [number, number];
+
+// function applyPolygonTransform(
+//   vertices: Vec2[],
+//   t: { x: number; y: number; scale: number; rotation: number },
+// ): Vec2[] {
+//   const cos = Math.cos(t.rotation);
+//   const sin = Math.sin(t.rotation);
+
+//   return vertices.map(([x, y]) => {
+//     // scale
+//     const sx = x * t.scale;
+//     const sy = y * t.scale;
+
+//     // rotate around origin
+//     const rx = sx * cos - sy * sin;
+//     const ry = sx * sin + sy * cos;
+
+//     // translate
+//     return [rx + t.x, ry + t.y];
+//   });
+// }
+
+// function bakePolygon(polygon: any) {
+//   if (!polygon) return undefined;
+//   const t = polygon.polygonTransform;
+//   if (!t) return polygon;
+
+//   return {
+//     vertices: applyPolygonTransform(polygon.vertices, t),
+//     polygonTransform: { x: 0, y: 0, scale: 1, rotation: 0 },
+//   };
+// }
 
 const makeId = (...parts: (string | undefined)[]) => parts.filter(Boolean).join('|');
 
@@ -82,7 +117,7 @@ export function buildRenderLayers(meta: MetadataParsed): RenderLayer[] {
               image: rev.image,
               alignToImage: alignTo,
               imageTransform: rev.imageTransform,
-              polygon: rev.polygon, // 있으면 사용
+              polygon: rev.polygon,
               date: rev.date,
               description: rev.description,
               changes: rev.changes,

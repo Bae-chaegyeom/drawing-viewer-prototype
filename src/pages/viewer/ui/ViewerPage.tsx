@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { loadMetadata } from '@/entities/metadata/lib/loadMetadata';
 import {
   buildNavigationIndex,
@@ -10,6 +10,7 @@ import type { RenderLayer } from '@/entities/metadata/model/renderTypes';
 import { MobileHeader } from '@/widgets/mobile-header/ui/MobileHeader';
 import { MobileViewerCard } from '@/widgets/drawing-viewer/ui/MobileViewerCard';
 import { ChangeSheet } from '@/widgets/change-sheet/ui/ChangeSheet';
+import type { MobileViewerHandle } from '@/widgets/drawing-viewer/ui/MobileViewerCard';
 
 type ChangeItem = { id: string; title: string; subtitle?: string };
 
@@ -28,6 +29,7 @@ export function ViewerPage() {
   const [nav, setNav] = useState<NavigationIndex | null>(null);
   const [layers, setLayers] = useState<RenderLayer[]>([]);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const viewerRef = useRef<MobileViewerHandle>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -53,9 +55,9 @@ export function ViewerPage() {
       setLayers(renderLayers);
       setSelection({
         drawingId: '01',
-        disciplineId: '건축',
-        regionKey,
-        revVersion: 'REV1',
+        disciplineId: '구조',
+        regionKey: 'A',
+        revVersion: 'REV2A',
       });
       setBreadcrumb(bc);
       setSubtitle(sub);
@@ -81,10 +83,18 @@ export function ViewerPage() {
   const polygonSource = useMemo(() => {
     if (!selection) return undefined;
 
-    // 1) selectedLayer에 polygon이 있으면 그걸 사용 (09 건축 같은 케이스)
     if (selectedLayer?.polygon) return selectedLayer.polygon;
 
-    // 2) 없으면 disciplineBase polygon fallback (01 건축 등)
+    if (selectedLayer?.kind === 'regionRevision' && selection.regionKey) {
+      return layers.find(
+        (l) =>
+          l.kind === 'regionBase' &&
+          l.drawingId === selection.drawingId &&
+          l.disciplineId === selection.disciplineId &&
+          l.regionKey === selection.regionKey,
+      )?.polygon;
+    }
+
     return layers.find(
       (l) =>
         l.kind === 'disciplineBase' &&
@@ -109,19 +119,26 @@ export function ViewerPage() {
     setItems(next);
   }, [selectedLayer]);
 
+  const viewerImageFile = useMemo(() => {
+    if (!selectedLayer) return undefined;
+
+    if (selectedLayer.kind === 'regionRevision') return selectedLayer.alignToImage;
+    return selectedLayer.image;
+  }, [selectedLayer]);
+
   return (
     <div className="h-dvh bg-slate-100 flex flex-col">
       <MobileHeader title={breadcrumb} subtitle={subtitle} />
 
       <div className="flex-1 overflow-hidden pb-[260px]">
-        <MobileViewerCard imageFile={selectedLayer?.image} polygon={polygonSource} />
+        <MobileViewerCard ref={viewerRef} imageFile={viewerImageFile} polygon={polygonSource} />
       </div>
 
       <ChangeSheet
         items={items}
-        onMove={(id) => {
-          console.log('move to', id);
-          // Commit 9-3에서 polygon focus 기능 연결
+        onMove={() => {
+          if (!polygonSource) return;
+          viewerRef.current?.focusToPolygon(polygonSource);
         }}
       />
     </div>
