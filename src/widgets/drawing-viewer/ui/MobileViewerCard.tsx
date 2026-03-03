@@ -1,8 +1,14 @@
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../../shared/ui/IconButton';
+import type { Polygon } from '@/entities/metadata/model/rawTypes';
 
-export function MobileViewerCard() {
+type Props = {
+  imageFile?: string; // ex) "13_주차장 ...png"
+  polygon?: Polygon;
+};
+
+export function MobileViewerCard({ imageFile }: Props) {
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -20,6 +26,13 @@ export function MobileViewerCard() {
 
     setScale(fitScale);
   }, [imageObj, size.width, size.height]);
+
+  useEffect(() => {
+    if (!imageFile) return;
+    const img = new window.Image();
+    img.src = `/data/drawings/${encodeURIComponent(imageFile)}`;
+    img.onload = () => setImageObj(img);
+  }, [imageFile]);
 
   // 이미지 로드
   useEffect(() => {

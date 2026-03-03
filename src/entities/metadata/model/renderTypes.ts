@@ -1,3 +1,5 @@
+import type { Polygon } from './rawTypes';
+
 export type RenderKind =
   | 'drawingBase'
   | 'disciplineBase'
@@ -20,7 +22,7 @@ export type RenderLayer = {
   image: string;
   alignToImage: string;
   imageTransform?: any;
-  polygon?: any;
+  polygon?: Polygon;
 
   date?: string;
   description?: string;
