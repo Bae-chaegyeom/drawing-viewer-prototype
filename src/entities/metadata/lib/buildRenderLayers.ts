@@ -1,9 +1,9 @@
-import type { Metadata } from '../model/rawTypes';
+import type { MetadataParsed } from '../lib/metadataSchema';
 import type { RenderLayer } from '../model/renderTypes';
 
 const makeId = (...parts: (string | undefined)[]) => parts.filter(Boolean).join('|');
 
-export function buildRenderLayers(meta: Metadata): RenderLayer[] {
+export function buildRenderLayers(meta: MetadataParsed): RenderLayer[] {
   const layers: RenderLayer[] = [];
 
   const drawings = meta.drawings;
@@ -26,7 +26,7 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
     for (const disciplineId of Object.keys(disciplines)) {
       const disc = disciplines[disciplineId];
 
-      // ✅ 규칙 1: alignToImage는 항상 기록
+      // 규칙 1: alignToImage는 항상 기록
       // discipline.imageTransform.relativeTo가 있으면 그게 기준
       // 없으면 drawing.image
       const disciplineAlignTo = disc.imageTransform?.relativeTo ?? drawing.image;
@@ -68,7 +68,7 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
 
           // regionRevision들
           for (const rev of region.revisions ?? []) {
-            // ✅ 특수 포인트: region revision relativeTo는 구조 도면(04...) 기준 :contentReference[oaicite:2]{index=2}
+            // region revision relativeTo는 구조 도면(04...) 기준 :contentReference[oaicite:2]{index=2}
             const alignTo = rev.imageTransform?.relativeTo ?? disc.image ?? drawing.image;
 
             layers.push({
@@ -94,7 +94,6 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
       }
 
       // --- 특수 케이스 2) 09 건축: discipline 레벨 polygon 없음, revision마다 polygon --- :contentReference[oaicite:3]{index=3}
-      // 판별: disc.revisions가 있고 disc.polygon/imageTransform이 없거나 약한 경우
       const hasRevisions = (disc.revisions?.length ?? 0) > 0;
       const revisionOwnPolygonMode =
         hasRevisions && !disc.polygon && !disc.imageTransform && !disc.image;
@@ -113,7 +112,7 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
             image: rev.image,
             alignToImage: alignTo,
             imageTransform: rev.imageTransform,
-            polygon: rev.polygon, // ✅ 이 케이스는 rev.polygon이 핵심 :contentReference[oaicite:4]{index=4}
+            polygon: rev.polygon,
             date: rev.date,
             description: rev.description,
             changes: rev.changes,
@@ -122,7 +121,7 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
         continue;
       }
 
-      // --- 일반 케이스: discipline base 레이어 생성 (image 있을 때) ---
+      // 일반 케이스: discipline base 레이어 생성 (image 있을 때)
       if (disc.image) {
         layers.push({
           id: makeId(drawingId, disciplineId, 'base'),
@@ -136,7 +135,7 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
           polygon: disc.polygon,
         });
       } else {
-        // --- 특수 케이스 3) 13 구조: polygon 없음(정상) --- :contentReference[oaicite:5]{index=5}
+        // 특수 케이스 3) 13 구조: polygon 없음(정상) contentReference[oaicite:5]{index=5}
         // imageTransform만 있고 polygon이 없는 케이스도 "레이어는 만들어야 함"
         // (표시는 drawing.image를 쓰고 transform 정보만 남김)
         if (disc.imageTransform) {
@@ -149,7 +148,7 @@ export function buildRenderLayers(meta: Metadata): RenderLayer[] {
             image: drawing.image,
             alignToImage: disciplineAlignTo,
             imageTransform: disc.imageTransform,
-            polygon: disc.polygon, // 보통 undefined
+            polygon: disc.polygon,
           });
         }
       }

@@ -68,7 +68,7 @@ export type Metadata = {
   };
 
   disciplines: {
-    id: string;
+    id?: string;
     name: string;
   }[];
 

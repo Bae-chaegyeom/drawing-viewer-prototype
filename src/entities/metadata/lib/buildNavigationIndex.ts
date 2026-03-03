@@ -1,4 +1,4 @@
-import type { Metadata } from '../model/rawTypes';
+import type { MetadataParsed } from '../lib/metadataSchema';
 
 export type NavRevision = {
   version: string;
@@ -27,7 +27,7 @@ export type NavigationIndex = {
   drawings: NavDrawing[];
 };
 
-export function buildNavigationIndex(meta: Metadata): NavigationIndex {
+export function buildNavigationIndex(meta: MetadataParsed): NavigationIndex {
   const drawings: NavDrawing[] = [];
 
   for (const drawingId of Object.keys(meta.drawings)) {

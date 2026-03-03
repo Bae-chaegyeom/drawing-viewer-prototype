@@ -1,28 +1,57 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadMetadata } from '@/entities/metadata/lib/loadMetadata';
-import { buildRenderLayers } from '@/entities/metadata/lib/buildRenderLayers';
 import { buildNavigationIndex } from '@/entities/metadata/lib/buildNavigationIndex';
+import { buildRenderLayers } from '@/entities/metadata/lib/buildRenderLayers';
+
+import { MobileHeader } from '@/widgets/mobile-header/ui/MobileHeader';
+import { MobileViewerCard } from '@/widgets/drawing-viewer/ui/MobileViewerCard';
+import { ChangeSheet } from '@/widgets/change-sheet/ui/ChangeSheet';
+
+type ChangeItem = { id: string; title: string; subtitle?: string };
 
 export function ViewerPage() {
-  const [meta, setMeta] = useState<any>(null);
-  const [layers, setLayers] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<string>('Loading...');
+  const [subtitle, setSubtitle] = useState<string | undefined>(undefined);
+  const [items, setItems] = useState<ChangeItem[]>([]);
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
-      try {
-        const m = await loadMetadata();
-        const ls = buildRenderLayers(m);
+      const meta = await loadMetadata();
+      const nav = buildNavigationIndex(meta);
+      const layers = buildRenderLayers(meta);
 
-        if (!mounted) return;
-        setMeta(m);
-        setLayers(ls);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message ?? 'unknown error');
-      }
+      const firstDrawing = nav.drawings.find((d) => d.id !== '00') ?? nav.drawings[0];
+      const firstDiscipline = firstDrawing.disciplines[0];
+
+      const firstNavRev =
+        firstDiscipline.regions?.[0]?.revisions?.[0] ?? firstDiscipline.revisions?.[0];
+
+      const revVersion = firstNavRev?.version;
+
+      const bc = `${firstDrawing.name} > ${firstDiscipline.id}${revVersion ? ` > ${revVersion}` : ''}`;
+      const sub = firstNavRev?.date ? `마지막 업데이트: ${firstNavRev.date}` : undefined;
+
+      // ✅ changes는 layers에서 가져오기
+      const revLayer = layers.find(
+        (l) =>
+          l.drawingId === firstDrawing.id &&
+          l.disciplineId === firstDiscipline.id &&
+          l.revisionVersion === revVersion,
+      );
+
+      const changeItems: ChangeItem[] = (revLayer?.changes ?? [])
+        .slice(0, 5)
+        .map((c: string, idx: number) => ({
+          id: `C-${String(idx + 1).padStart(2, '0')}`,
+          title: c,
+        }));
+
+      if (!mounted) return;
+      setBreadcrumb(bc);
+      setSubtitle(sub);
+      setItems(changeItems);
     })();
 
     return () => {
@@ -30,46 +59,20 @@ export function ViewerPage() {
     };
   }, []);
 
-  const debug = useMemo(() => {
-    if (!meta) return null;
-
-    const drawingCount = Object.keys(meta.drawings ?? {}).length;
-    const layerCount = layers.length;
-
-    const sample = layers.slice(0, 12);
-
-    const byKind: Record<string, number> = {};
-    for (const l of layers) byKind[l.kind] = (byKind[l.kind] ?? 0) + 1;
-
-    return {
-      summary: { drawingCount, layerCount, byKind },
-      sampleLayers: sample,
-    };
-  }, [meta, layers]);
-
-  if (error) return <div style={{ padding: 16 }}>Error: {error}</div>;
-  if (!debug) return <div style={{ padding: 16 }}>Loading metadata…</div>;
-
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Commit 6 Debug View</h1>
+    <div className="h-dvh bg-slate-100 flex flex-col">
+      <MobileHeader title={breadcrumb} subtitle={subtitle} />
 
-      <p style={{ marginBottom: 12 }}>metadata 로드 + render layers 정규화 결과 요약</p>
+      <div className="flex-1 overflow-hidden">
+        <MobileViewerCard />
+      </div>
 
-      <pre
-        style={{
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          background: '#111',
-          color: '#eee',
-          padding: 12,
-          borderRadius: 8,
-          fontSize: 12,
-          lineHeight: 1.4,
+      <ChangeSheet
+        items={items}
+        onMove={(id) => {
+          console.log('move to', id);
         }}
-      >
-        {JSON.stringify(debug, null, 2)}
-      </pre>
+      />
     </div>
   );
 }
