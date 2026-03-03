@@ -52,10 +52,10 @@ export function ViewerPage() {
       setNav(navIndex);
       setLayers(renderLayers);
       setSelection({
-        drawingId: firstDrawing.id,
-        disciplineId: firstDiscipline.id,
+        drawingId: '01',
+        disciplineId: '건축',
         regionKey,
-        revVersion,
+        revVersion: 'REV1',
       });
       setBreadcrumb(bc);
       setSubtitle(sub);
@@ -78,6 +78,21 @@ export function ViewerPage() {
     });
   }, [layers, selection]);
 
+  const polygonSource = useMemo(() => {
+    if (!selection) return undefined;
+
+    // 1) selectedLayer에 polygon이 있으면 그걸 사용 (09 건축 같은 케이스)
+    if (selectedLayer?.polygon) return selectedLayer.polygon;
+
+    // 2) 없으면 disciplineBase polygon fallback (01 건축 등)
+    return layers.find(
+      (l) =>
+        l.kind === 'disciplineBase' &&
+        l.drawingId === selection.drawingId &&
+        l.disciplineId === selection.disciplineId,
+    )?.polygon;
+  }, [layers, selection, selectedLayer]);
+
   useEffect(() => {
     if (!selectedLayer) {
       setItems([]);
@@ -99,7 +114,7 @@ export function ViewerPage() {
       <MobileHeader title={breadcrumb} subtitle={subtitle} />
 
       <div className="flex-1 overflow-hidden pb-[260px]">
-        <MobileViewerCard imageFile={selectedLayer?.image} polygon={selectedLayer?.polygon} />
+        <MobileViewerCard imageFile={selectedLayer?.image} polygon={polygonSource} />
       </div>
 
       <ChangeSheet
