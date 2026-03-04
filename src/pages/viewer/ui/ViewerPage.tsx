@@ -6,7 +6,6 @@ import {
 } from '@/entities/metadata/lib/buildNavigationIndex';
 import { buildRenderLayers } from '@/entities/metadata/lib/buildRenderLayers';
 import type { RenderLayer } from '@/entities/metadata/model/renderTypes';
-
 import { MobileHeader } from '@/widgets/mobile-header/ui/MobileHeader';
 import { MobileViewerCard } from '@/widgets/drawing-viewer/ui/MobileViewerCard';
 import { ChangeSheet } from '@/widgets/change-sheet/ui/ChangeSheet';
@@ -16,6 +15,7 @@ import { OverlayControls } from '@/widgets/overlay-controls/ui/OverlayControls';
 import { DesktopInspector } from '@/widgets/desktop-inspector/ui/DesktopInspector';
 import { useImageMap } from '@/shared/lib/useImageMap';
 import { DesktopDrawingViewer } from '@/widgets/drawing-viewer/ui/DesktopDrawingViewer';
+import { DrawingSelector } from '@/widgets/drawing-selector/ui/DrawingSelector';
 
 type ChangeItem = { id: string; title: string; subtitle?: string };
 
@@ -27,16 +27,16 @@ type Selection = {
 };
 
 export function ViewerPage() {
-  const [breadcrumb, setBreadcrumb] = useState('Loading...');
-  const [subtitle, setSubtitle] = useState<string | undefined>(undefined);
   const [items, setItems] = useState<ChangeItem[]>([]);
 
   const [nav, setNav] = useState<NavigationIndex | null>(null);
   const [layers, setLayers] = useState<RenderLayer[]>([]);
   const [selection, setSelection] = useState<Selection | null>(null);
   const viewerRef = useRef<MobileViewerHandle>(null);
+  const [viewMode, setViewMode] = useState<'revision' | 'overlay'>('revision');
 
   const [baseDiscipline, setBaseDiscipline] = useState<string>('건축');
+  const [showReferenceBase, setShowReferenceBase] = useState(false);
   const [overlayEnabled, setOverlayEnabled] = useState<Record<string, boolean>>({
     구조: true,
     설비: false,
@@ -54,6 +54,11 @@ export function ViewerPage() {
   });
 
   useEffect(() => {
+    if (!selection) return;
+    setBaseDiscipline(selection.disciplineId);
+  }, [selection?.disciplineId]);
+
+  useEffect(() => {
     let mounted = true;
 
     (async () => {
@@ -66,23 +71,23 @@ export function ViewerPage() {
       const firstNavRev =
         firstDiscipline.regions?.[0]?.revisions?.[0] ?? firstDiscipline.revisions?.[0];
 
-      const revVersion = firstNavRev?.version;
-      const regionKey = firstDiscipline.regions?.[0]?.key;
+      const hasRegions = !!firstDiscipline.regions?.length;
+      const regionKey = hasRegions ? firstDiscipline.regions![0].key : undefined;
+      const firstRev = hasRegions
+        ? firstDiscipline.regions![0].revisions[0]
+        : firstDiscipline.revisions?.[0];
 
-      const bc = `${firstDrawing.name} > ${firstDiscipline.id}${revVersion ? ` > ${revVersion}` : ''}`;
-      const sub = firstNavRev?.date ? `마지막 업데이트: ${firstNavRev.date}` : undefined;
+      const revVersion = firstNavRev?.version;
 
       if (!mounted) return;
       setNav(navIndex);
       setLayers(renderLayers);
       setSelection({
-        drawingId: '01',
-        disciplineId: '구조',
-        regionKey: 'A',
-        revVersion: 'REV2A',
+        drawingId: firstDrawing.id,
+        disciplineId: firstDiscipline.id,
+        regionKey,
+        revVersion: firstRev?.version,
       });
-      setBreadcrumb(bc);
-      setSubtitle(sub);
     })();
 
     return () => {
@@ -101,6 +106,21 @@ export function ViewerPage() {
       return true;
     });
   }, [layers, selection]);
+
+  const breadcrumb = useMemo(() => {
+    if (!nav || !selection) return 'Loading...';
+    const drawingName =
+      nav.drawings.find((d) => d.id === selection.drawingId)?.name ?? selection.drawingId;
+    const parts = [drawingName, selection.disciplineId];
+    if (selection.regionKey) parts.push(`Region ${selection.regionKey}`);
+    if (selection.revVersion) parts.push(selection.revVersion);
+    return parts.join(' > ');
+  }, [nav, selection]);
+
+  const subtitle = useMemo(() => {
+    if (!selectedLayer?.date) return undefined;
+    return `마지막 업데이트: ${selectedLayer.date}`;
+  }, [selectedLayer]);
 
   const polygonSource = useMemo(() => {
     if (!selection) return undefined;
@@ -167,7 +187,7 @@ export function ViewerPage() {
     for (const d of availableDisciplines) {
       const found = layers.find(
         (l) =>
-          l.kind === 'disciplineBase' &&
+          (l.kind === 'disciplineBase' || l.kind === 'disciplineRevision') &&
           l.drawingId === selection.drawingId &&
           l.disciplineId === d &&
           !!l.image,
@@ -200,43 +220,97 @@ export function ViewerPage() {
     });
   }, [overlayAvailable, selection, baseDiscipline]);
 
-  const baseLayer = useMemo(() => {
-    if (!selection) return undefined;
-    return layers.find(
+  function pickBaseLayer(layers: RenderLayer[], drawingId: string, disciplineId: string) {
+    const base = layers.find(
       (l) =>
         l.kind === 'disciplineBase' &&
-        l.drawingId === selection.drawingId &&
-        l.disciplineId === baseDiscipline,
+        l.drawingId === drawingId &&
+        l.disciplineId === disciplineId &&
+        !!l.image,
     );
-  }, [layers, selection, baseDiscipline]);
+    if (base) return base;
+
+    const revs = layers
+      .filter(
+        (l) =>
+          l.kind === 'disciplineRevision' &&
+          l.drawingId === drawingId &&
+          l.disciplineId === disciplineId &&
+          !!l.image,
+      )
+      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+    return revs.at(-1) ?? revs[0];
+  }
+
+  function pickOverlayLayer(
+    layers: RenderLayer[],
+    drawingId: string,
+    disciplineId: string,
+    baseImageFile?: string,
+  ) {
+    const base = layers.find(
+      (l) =>
+        l.kind === 'disciplineBase' &&
+        l.drawingId === drawingId &&
+        l.disciplineId === disciplineId &&
+        !!l.image,
+    );
+    if (base?.image && base.image !== baseImageFile) return base;
+
+    const revs = layers
+      .filter(
+        (l) =>
+          l.kind === 'disciplineRevision' &&
+          l.drawingId === drawingId &&
+          l.disciplineId === disciplineId &&
+          !!l.image,
+      )
+      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+
+    const last = revs.at(-1) ?? revs[0];
+    if (last?.image && last.image !== baseImageFile) return last;
+
+    return base;
+  }
+
+  const baseImageFile = useMemo(() => {
+    if (!selectedLayer) return undefined;
+
+    return selectedLayer.alignToImage ?? selectedLayer.image;
+  }, [selectedLayer]);
+
+  const baseLayer = useMemo(() => {
+    if (!selection || !baseImageFile) return undefined;
+
+    return layers.find((l) => l.drawingId === selection.drawingId && l.image === baseImageFile);
+  }, [layers, selection, baseImageFile]);
 
   const overlayLayers = useMemo(() => {
     if (!selection) return [];
+    const baseImageFile = baseLayer?.image;
 
     return Object.keys(overlayEnabled)
       .filter((k) => overlayEnabled[k])
-      .map((k) => {
-        const found = layers.find(
-          (l) =>
-            l.kind === 'disciplineBase' &&
-            l.drawingId === selection.drawingId &&
-            l.disciplineId === k,
-        );
-
-        return found;
-      })
+      .map((k) => pickOverlayLayer(layers, selection.drawingId, k, baseImageFile))
       .filter(Boolean);
-  }, [layers, selection, overlayEnabled]);
+  }, [layers, selection, overlayEnabled, baseLayer]);
 
   const viewerLayersInput = useMemo(() => {
-    if (!baseLayer) return [];
+    if (!selection || !selectedLayer?.image) return [];
 
-    const base = {
-      key: `base:${baseLayer.disciplineId}`,
-      imageFile: baseLayer.image,
-      opacity: 1,
-      imageTransform: undefined,
-    };
+    if (viewMode === 'revision') {
+      return [
+        {
+          key: `single:${selectedLayer.id}`,
+          imageFile: selectedLayer.image,
+          opacity: 1,
+          imageTransform: undefined,
+        },
+      ];
+    }
+
+    const base = baseLayer?.image;
+    if (!base) return [];
 
     const overlays = overlayLayers.map((l) => ({
       key: `ov:${l!.disciplineId}`,
@@ -245,12 +319,11 @@ export function ViewerPage() {
       imageTransform: l!.imageTransform,
     }));
 
-    return [base, ...overlays];
-  }, [baseLayer, overlayLayers, opacityByDiscipline]);
-
-  useEffect(() => {
-    if (viewerLayersInput.length === 0) return;
-  }, [viewerLayersInput]);
+    return [
+      { key: `base:${base}`, imageFile: base, opacity: 1, imageTransform: undefined },
+      ...overlays,
+    ];
+  }, [selection, selectedLayer, viewMode, baseLayer, overlayLayers, opacityByDiscipline]);
 
   const imageFiles = useMemo(() => viewerLayersInput.map((l) => l.imageFile), [viewerLayersInput]);
   const imageMap = useImageMap(imageFiles);
@@ -275,16 +348,33 @@ export function ViewerPage() {
       {/*데스크탑*/}
       <DesktopLayout
         left={
-          <OverlayControls
-            availableDisciplines={availableDisciplines}
-            overlayAvailable={overlayAvailable}
-            baseDiscipline={baseDiscipline}
-            onChangeBase={setBaseDiscipline}
-            overlayEnabled={overlayEnabled}
-            onToggleOverlay={(k) => setOverlayEnabled((p) => ({ ...p, [k]: !p[k] }))}
-            opacityByDiscipline={opacityByDiscipline}
-            onChangeOpacity={(k, v) => setOpacityByDiscipline((p) => ({ ...p, [k]: v }))}
-          />
+          <div className="p-5 space-y-6">
+            <select
+              className="w-full border rounded-xl px-3 py-2"
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as any)}
+            >
+              <option value="revision">리비전 보기(단독)</option>
+              <option value="overlay">공종 오버레이 보기</option>
+            </select>
+            {nav && selection && (
+              <DrawingSelector
+                drawings={nav.drawings}
+                value={selection}
+                onChange={(next) => setSelection(next)}
+              />
+            )}
+            <OverlayControls
+              availableDisciplines={availableDisciplines}
+              overlayAvailable={overlayAvailable}
+              baseDiscipline={baseDiscipline}
+              onChangeBase={setBaseDiscipline}
+              overlayEnabled={overlayEnabled}
+              onToggleOverlay={(k) => setOverlayEnabled((p) => ({ ...p, [k]: !p[k] }))}
+              opacityByDiscipline={opacityByDiscipline}
+              onChangeOpacity={(k, v) => setOpacityByDiscipline((p) => ({ ...p, [k]: v }))}
+            />
+          </div>
         }
         center={
           <div className="h-full rounded-2xl bg-white shadow overflow-hidden">
