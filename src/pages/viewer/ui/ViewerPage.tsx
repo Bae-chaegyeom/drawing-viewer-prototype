@@ -36,7 +36,6 @@ export function ViewerPage() {
   const [viewMode, setViewMode] = useState<'revision' | 'overlay'>('revision');
 
   const [baseDiscipline, setBaseDiscipline] = useState<string>('건축');
-  const [showReferenceBase, setShowReferenceBase] = useState(false);
   const [overlayEnabled, setOverlayEnabled] = useState<Record<string, boolean>>({
     구조: true,
     설비: false,
@@ -68,16 +67,12 @@ export function ViewerPage() {
 
       const firstDrawing = navIndex.drawings.find((d) => d.id !== '00') ?? navIndex.drawings[0];
       const firstDiscipline = firstDrawing.disciplines[0];
-      const firstNavRev =
-        firstDiscipline.regions?.[0]?.revisions?.[0] ?? firstDiscipline.revisions?.[0];
 
       const hasRegions = !!firstDiscipline.regions?.length;
       const regionKey = hasRegions ? firstDiscipline.regions![0].key : undefined;
       const firstRev = hasRegions
         ? firstDiscipline.regions![0].revisions[0]
         : firstDiscipline.revisions?.[0];
-
-      const revVersion = firstNavRev?.version;
 
       if (!mounted) return;
       setNav(navIndex);
@@ -219,28 +214,6 @@ export function ViewerPage() {
       return changed ? next : prev;
     });
   }, [overlayAvailable, selection, baseDiscipline]);
-
-  function pickBaseLayer(layers: RenderLayer[], drawingId: string, disciplineId: string) {
-    const base = layers.find(
-      (l) =>
-        l.kind === 'disciplineBase' &&
-        l.drawingId === drawingId &&
-        l.disciplineId === disciplineId &&
-        !!l.image,
-    );
-    if (base) return base;
-
-    const revs = layers
-      .filter(
-        (l) =>
-          l.kind === 'disciplineRevision' &&
-          l.drawingId === drawingId &&
-          l.disciplineId === disciplineId &&
-          !!l.image,
-      )
-      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
-    return revs.at(-1) ?? revs[0];
-  }
 
   function pickOverlayLayer(
     layers: RenderLayer[],

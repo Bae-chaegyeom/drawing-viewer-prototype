@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useImperativeHandle } from 'react';
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../../shared/ui/IconButton';
@@ -63,7 +63,6 @@ export const MobileViewerCard = forwardRef<MobileViewerHandle, Props>(
     const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
     const [scale, setScale] = useState(1);
     const [size, setSize] = useState({ width: 0, height: 0 });
-    const [usePolyTransform, setUsePolyTransform] = useState(false);
 
     useEffect(() => {
       if (!imageObj) return;
@@ -189,12 +188,7 @@ export const MobileViewerCard = forwardRef<MobileViewerHandle, Props>(
             −
           </IconButton>
 
-          <IconButton
-            ariaLabel="toggle polygon transform"
-            onClick={() => setUsePolyTransform((v) => !v)}
-          >
-            T
-          </IconButton>
+          <IconButton ariaLabel="toggle polygon transform">T</IconButton>
         </div>
       </div>
     );
