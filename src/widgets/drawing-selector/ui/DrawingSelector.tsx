@@ -1,9 +1,9 @@
-type NavRevision = { version: string; date: string; changesCount: number };
-type NavRegion = { key: string; revisions: NavRevision[] };
-type NavDiscipline = { id: string; regions?: NavRegion[]; revisions?: NavRevision[] };
-type NavDrawing = { id: string; name: string; disciplines: NavDiscipline[] };
+export type NavRevision = { version: string; date: string; changesCount: number };
+export type NavRegion = { key: string; revisions: NavRevision[] };
+export type NavDiscipline = { id: string; regions?: NavRegion[]; revisions?: NavRevision[] };
+export type NavDrawing = { id: string; name: string; disciplines: NavDiscipline[] };
 
-type Selection = {
+export type Selection = {
   drawingId: string;
   disciplineId: string;
   regionKey?: string;

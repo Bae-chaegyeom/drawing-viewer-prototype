@@ -187,8 +187,6 @@ export const MobileViewerCard = forwardRef<MobileViewerHandle, Props>(
           <IconButton ariaLabel="zoom out" onClick={() => setScale((prev) => prev / 1.1)}>
             −
           </IconButton>
-
-          <IconButton ariaLabel="toggle polygon transform">T</IconButton>
         </div>
       </div>
     );

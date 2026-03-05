@@ -1,6 +1,6 @@
 import { Chip } from '@/shared/ui/Chip';
 
-type Item = { id: string; title: string; subtitle?: string };
+type Item = { id: string; title: string; subtitle?: string; movable?: boolean };
 
 type Props = {
   items: Item[];
@@ -15,7 +15,6 @@ export function ChangeSheet({ items, onMove }: Props) {
           <div className="font-semibold">
             변경 항목 리스트 <span className="text-indigo-600">{items.length}건</span>
           </div>
-          <button className="text-indigo-600 text-sm font-medium">전체보기</button>
         </div>
 
         <div className="px-4 pb-5 space-y-3 max-h-[34vh] overflow-y-auto">
@@ -25,22 +24,31 @@ export function ChangeSheet({ items, onMove }: Props) {
             </div>
           ) : (
             items.map((it) => (
-              <div key={it.id} className="rounded-2xl border bg-white p-4 flex items-center gap-3">
+              <div
+                key={it.id}
+                className="rounded-2xl border bg-white p-4 flex items-start gap-3 overflow-hidden"
+              >
                 <Chip>{it.id}</Chip>
 
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{it.title}</div>
+                  <div className="font-semibold break-words whitespace-normal leading-5">
+                    {it.title}
+                  </div>
                   {it.subtitle && (
-                    <div className="text-sm text-slate-500 truncate">{it.subtitle}</div>
+                    <div className="text-sm text-slate-500 break-words whitespace-normal leading-5 mt-1">
+                      {it.subtitle}
+                    </div>
                   )}
                 </div>
 
-                <button
-                  onClick={() => onMove(it.id)}
-                  className="shrink-0 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium"
-                >
-                  이동
-                </button>
+                {it.movable === false ? null : (
+                  <button
+                    onClick={() => onMove(it.id)}
+                    className="shrink-0 rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium"
+                  >
+                    이동
+                  </button>
+                )}
               </div>
             ))
           )}

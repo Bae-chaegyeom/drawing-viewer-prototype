@@ -16,8 +16,10 @@ import { DesktopInspector } from '@/widgets/desktop-inspector/ui/DesktopInspecto
 import { useImageMap } from '@/shared/lib/useImageMap';
 import { DesktopDrawingViewer } from '@/widgets/drawing-viewer/ui/DesktopDrawingViewer';
 import { DrawingSelector } from '@/widgets/drawing-selector/ui/DrawingSelector';
+import { MobileSheet } from '@/widgets/mobile-sheet/ui/MobileSheet';
+import { MobileDrawingSelector } from '@/widgets/drawing-selector/ui/MobileDrawingSelector';
 
-type ChangeItem = { id: string; title: string; subtitle?: string };
+type ChangeItem = { id: string; title: string; subtitle?: string; movable?: boolean };
 
 type Selection = {
   drawingId: string;
@@ -51,6 +53,7 @@ export function ViewerPage() {
     공조설비: 0.6,
     배관설비: 0.6,
   });
+  const [mobileNavOpen, setMobileNavOpen] = useState(true);
 
   useEffect(() => {
     if (!selection) return;
@@ -146,12 +149,25 @@ export function ViewerPage() {
       return;
     }
 
-    const next: ChangeItem[] = (selectedLayer.changes ?? [])
-      .slice(0, 5)
-      .map((c: string, idx: number) => ({
+    const changes = selectedLayer.changes ?? [];
+    let next: ChangeItem[] = [];
+
+    if (changes.length > 0) {
+      next = changes.slice(0, 5).map((c: string, idx: number) => ({
         id: `C-${String(idx + 1).padStart(2, '0')}`,
         title: c,
+        movable: true,
       }));
+    } else if (selectedLayer.revisionVersion) {
+      next = [
+        {
+          id: 'INFO',
+          title: selectedLayer.description ?? '변경 내역 정보 없음',
+          subtitle: '이 리비전의 changes 데이터가 비어있습니다. (초기 설계일 수 있음)',
+          movable: false,
+        },
+      ];
+    }
 
     setItems(next);
   }, [selectedLayer]);
@@ -304,11 +320,29 @@ export function ViewerPage() {
   return (
     <>
       <div className="lg:hidden h-dvh bg-slate-100 flex flex-col">
-        <MobileHeader title={breadcrumb} subtitle={subtitle} />
+        <MobileHeader
+          title={breadcrumb}
+          subtitle={subtitle}
+          onBack={() => setMobileNavOpen(true)}
+          onMenu={() => setMobileNavOpen(true)}
+        />
 
         <div className="flex-1 overflow-hidden pb-[260px]">
           <MobileViewerCard ref={viewerRef} imageFile={viewerImageFile} polygon={polygonSource} />
         </div>
+
+        <MobileSheet open={mobileNavOpen} title="도면 선택" onClose={() => setMobileNavOpen(false)}>
+          {nav && selection && (
+            <MobileDrawingSelector
+              drawings={nav.drawings}
+              value={selection}
+              onApply={(next) => {
+                setSelection(next);
+                setMobileNavOpen(false);
+              }}
+            />
+          )}
+        </MobileSheet>
 
         <ChangeSheet
           items={items}
