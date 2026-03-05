@@ -115,6 +115,7 @@ UI를 먼저 만들면 데이터 분기 때문에 코드가 빠르게 복잡해�
 - `@reduxjs/toolkit`, `react-redux` 채택
 - 이유: 선택 상태/오버레이 상태를 일관되게 확장하기 쉬움
 - 빠른 프로토타입 진행 과정에서 일부 로컬 상태가 남아 있어 추후 통합필요
+- selection/overlay 같은 도메인 상태는 Redux로 관리, Konva stageRef/size/scale 같은 프레임 단위 UI 상태는 컴포넌트 로컬 상태로 유지
 
 ### 4-2. 렌더링
 
