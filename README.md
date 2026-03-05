@@ -1,259 +1,142 @@
-# 도면 탐색 인터페이스
+# 건설 도면 탐색 인터페이스 (Drawing Explorer Prototype)
 
-건설 현장의 도면, 공종, 리비전 구조를 기반으로
-사용자가 원하는 정보에 빠르게 도달할 수 있도록 설계한
-건설 도면 탐색 인터페이스 프로젝트입니다.
+과제 README의 요구사항(도면 탐색 / 도면 표시 / 컨텍스트 인식)을 기준으로 구현한 React + TypeScript 프로토타입입니다.
 
-하나의 건설 현장에는 수백, 수천 개의 공간 정보가 존재하며,
-각 공간은 공종별 도면과 설계 변경에 따른 리비전을 갖습니다.
+## 1. 과제 요구사항 대응
 
-이 프로젝트는 이러한 복잡한 데이터 위에서 다음을 가능하게 합니다.
+### 필수 기능
 
-- 도면 탐색
-- 리비전 기반 도면 표시
-- 변경 항목 탐색
-- 공종 간 간섭 분석
+- 도면 탐색: 도면 → 공종 → Region(있는 경우) → Revision 선택
+- 도면 표시: 선택된 도면/리비전을 Konva 캔버스에 표시
+- 컨텍스트 인식: 현재 도면/공종/리비전 정보를 헤더/인스펙터에 표시
 
-## 1. 실행 방법
+### 시나리오 대응
 
----
+- 최신 리비전 확인: Revision 선택 후 즉시 반영
+- 공종 간 간섭 확인: 데스크탑 오버레이 모드 + 공종별 opacity 조절
+- 변경 이력 확인: Change list(리비전 changes 기반) + 정보 카드
 
-### 1. 패키지 설치
+## 2. 실행 방법
 
 ```bash
 npm install
-```
-
-### 2. 개발 서버 실행
-
-```bash
 npm run dev
 ```
 
-브라우저에서 접속
-http://localhost:5173
-
-### 3. 빌드 확인
+빌드 확인:
 
 ```bash
 npm run build
 npm run preview
 ```
 
----
+## 3. 데이터 설정 (중요)
 
-## 2. 데이터 설정
+과제 유의사항에 따라 실제 데이터는 레포에 포함하지 않습니다.
 
-과제 규정상 실제 도면 데이터는 레포지토리에 포함하지 않았습니다.
-실행하려면 제공받은 데이터를 아래 위치에 복사해야 합니다.
+실행 전, 제공받은 데이터를 아래 경로에 배치하세요.
 
 ```bash
 public/data/
+  ├ metadata.json
+  └ drawings/*
 ```
 
-예시 구조
+`.gitignore`에서 `public/data/`는 제외되어 있습니다.
+
+## 4. 기술 스택
+
+- React 19 + TypeScript
+- Vite
+- Konva / react-konva
+- Redux Toolkit / react-redux
+- Tailwind CSS
+- Zod
+
+## 5. 현재 구현 기능
+
+### 5.1 Metadata 로드/검증/정규화
+
+- `metadata.json`을 Zod로 검증
+- `buildNavigationIndex`: 탐색용 구조 생성
+- `buildRenderLayers`: 렌더링용 평탄 레이어 생성
+- 특수 케이스 처리
+  - 101동 구조 Region A/B
+  - 주민공동시설 건축의 revision-level polygon/imageTransform
+  - polygon 없는 공종(주차장 구조)
+
+### 5.2 모바일 UX
+
+- 첫 진입 시 도면 선택 바텀시트 오픈
+- 뒤로가기/메뉴 버튼 클릭 시 도면 선택 바텀시트 재오픈
+- 바텀시트 select는 커스텀 드롭다운(포털 + fixed 위치)로 구현
+  - 브라우저별 네이티브 select 팝업 위치 이슈 회피
+
+### 5.3 뷰어
+
+- MobileViewerCard
+  - 이미지 렌더링, zoom/pan, polygon 표시
+  - 변경 항목 이동 시 polygon 영역 포커싱
+- DesktopDrawingViewer
+  - 단일 리비전 보기
+  - 공종 오버레이 보기
+  - 선택 polygon 오버레이
+
+### 5.4 변경 항목 리스트
+
+- `changes`가 있을 때 항목 표시
+- `changes`가 비어있으면 정보 카드(INFO) 표시
+- 긴 문장 줄바꿈 처리로 카드 overflow 방지
+
+### 5.5 데스크탑 오버레이 제어
+
+- 기준 공종 선택
+- 오버레이 공종 on/off
+- 공종별 opacity 슬라이더
+- 기준 공종은 목록에 유지(기준 배지)
+
+## 6. 오버레이 정합성 보정
+
+실데이터의 공종별 산출본 편차(해상도/미세 좌표 오차) 때문에 일부 조합은 데이터 transform만으로 완벽히 맞지 않습니다.
+
+이를 위해 `ViewerPage`에 공종별 보정 맵을 추가했습니다.
+
+- drawingId + discipline 기준으로 `dx`, `dy`, `ds(scale delta)` 적용
+- 예: `ds = 0.003`은 `+0.3%` 보정
+
+보정 위치:
+
+- `src/pages/viewer/ui/ViewerPage.tsx`
+  - `OVERLAY_CALIBRATION`
+  - `applyOverlayCalibration`
+
+## 7. 프로젝트 구조 (Lite FSD)
 
 ```bash
-public
- ├ data
- │   ├ metadata.json
- │   └ drawings
- │        ├ 01_101동_지상1층_평면도_건축.png
- │        ├ 04_101동_지상1층_평면도_구조.png
- │        └ ...
- └ data.sample
-     ├ metadata.sample.json
-     └ drawings
+src/
+  app/
+  pages/viewer/
+  widgets/
+    drawing-viewer/
+    drawing-selector/
+    overlay-controls/
+    mobile-header/
+    mobile-sheet/
+    change-sheet/
+    desktop-inspector/
+    desktop-layout/
+  entities/metadata/
+    lib/
+    model/
+  features/
+    navigation/
+    compare/
+    layer-toggle/
+  shared/
+    lib/
+    ui/
 ```
 
-## 3. 기술 스택
+## 8. 문서
 
-| 영역             | 기술               |
-| ---------------- | ------------------ |
-| Framework        | React + TypeScript |
-| Build Tool       | Vite               |
-| Canvas Rendering | react-konva        |
-| State Management | Redux Toolkit      |
-| Styling          | Tailwind CSS       |
-| Data Validation  | Zod                |
-
----
-
-## 4. 주요 기능
-
-### 4.1 도면 탐색
-
-사용자는 다음 구조로 도면을 탐색할 수 있습니다.
-
-```plain text
-도면 → 공종 → Region → Revision
-```
-
-예시
-
-```plain text
-101동 지상1층 평면도
-  ├ 건축
-  ├ 구조
-  │   ├ Region A
-  │   └ Region B
-  └ 설비
-```
-
-탐색 UI는 **DrawingSelector** 컴포넌트로 구현했습니다.
-
-### 4.2 도면 뷰어
-
-Konva 기반 도면 뷰어를 구현했습니다.
-
-지원 기능
-
-- Pan (드래그 이동)
-- Zoom (확대/축소)
-- 도면 자동 fit
-- Polygon 영역 표시
-
-구현 컴포넌트
-
-```plain text
-MobileViewerCard
-DesktopDrawingViewer
-```
-
-### 4.3 변경 항목 탐색
-
-리비전에 포함된 변경 항목을 ChangeSheet로 표시합니다.
-사용자가 변경 항목을 클릭하면
-
-```plain text
-변경 항목 → 해당 Polygon 영역으로 이동
-```
-
-기능이 동작합니다.
-
-### 4.4 공종 간 오버레이 (간섭 확인)
-
-데스크탑 모드에서 여러 공종 도면을 겹쳐 볼 수 있습니다.
-
-기능
-
-- 공종 체크박스
-- opacity 조절
-- 도면 없는 공종 자동 비활성화
-  좌측 패널에서 제어합니다.
-
-### 4.5 리비전 기반 도면 표시
-
-리비전 선택 시 해당 리비전 도면을 단독으로 표시합니다.
-
-```plain text
-REV1 → REV2 → REV3
-```
-
-선택에 따라 도면이 교체됩니다.
-
-### 4.6 컨텍스트 정보 패널
-
-우측 Inspector 패널에서 다음 정보를 확인할 수 있습니다.
-
-- 현재 도면
-- 공종
-- 리비전
-- 변경 항목 목록
-
----
-
-## 5. 프로젝트 구조
-
-```bash
-src
- ├ entities
- │   └ metadata
- │       ├ model
- │       └ lib
- │
- ├ widgets
- │   ├ drawing-viewer
- │   ├ overlay-controls
- │   ├ desktop-inspector
- │   └ drawing-selector
- │
- ├ pages
- │   └ viewer
- │
- ├ shared
- │   └ lib
- │
- └ public
-```
-
----
-
-## 6. 주요 설계 포인트
-
-#### Metadata → Render Layer 변환
-
-metadata 구조를 그대로 사용하지 않고
-
-metadata
-↓
-render layers
-구조로 변환하여 뷰어에서 사용했습니다.
-
-이 과정에서 다음 특수 케이스를 처리했습니다.
-
-- region 구조
-- revision polygon
-- polygon 없는 공종
-- imageTransform 정렬
-
----
-
-#### imageTransform 정렬
-
-공종 도면은 기준 도면 위에 정렬됩니다.
-
-```bash
-기준 도면 (건축)
-  + 구조
-  + 설비
-  + 소방
-```
-
-Konva Group transform을 사용해 정렬했습니다.
-
-#### 모바일 → 데스크탑 확장
-
-처음에는 모바일 UI를 기준으로 구현하고
-
-```plain text
-Mobile Viewer
-   ↓
-Desktop Analysis UI
-```
-
-순서로 확장했습니다.
-
----
-
-## 7. 미구현 / 향후 개선
-
-현재 구현에서 추가 개선 가능한 부분
-
-- 리비전 비교 모드 (REV1 vs REV2)
-- 변경 영역 하이라이트
-- 공종 간 충돌 자동 감지
-- 도면 검색 기능
-
----
-
-## 8. 참고
-
-본 프로젝트는 건설 도면 분석 시스템의 UI 프로토타입 구현을 목표로 하며
-실제 시스템에서는 AI 기반 도면 분석 및 변경 감지 기능과 연동될 수 있습니다.
-
----
-
-## 9. 라이선스
-
-과제 제출용 프로젝트입니다.
+- 설계 상세: `DESIGN.md`

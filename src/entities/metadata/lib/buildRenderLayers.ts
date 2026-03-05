@@ -135,7 +135,8 @@ export function buildRenderLayers(meta: MetadataParsed): RenderLayer[] {
 
       if (revisionOwnPolygonMode) {
         for (const rev of disc.revisions ?? []) {
-          const alignTo = rev.imageTransform?.relativeTo ?? drawing.image;
+          const layerTransform = rev.imageTransform ?? disc.imageTransform;
+          const alignTo = layerTransform?.relativeTo ?? drawing.image;
 
           layers.push({
             id: makeId(drawingId, disciplineId, `rev:${rev.version}`),
@@ -146,7 +147,7 @@ export function buildRenderLayers(meta: MetadataParsed): RenderLayer[] {
             revisionVersion: rev.version,
             image: rev.image,
             alignToImage: alignTo,
-            imageTransform: rev.imageTransform,
+            imageTransform: layerTransform,
             polygon: rev.polygon,
             date: rev.date,
             description: rev.description,
@@ -190,7 +191,8 @@ export function buildRenderLayers(meta: MetadataParsed): RenderLayer[] {
 
       // discipline revisions(일반)
       for (const rev of disc.revisions ?? []) {
-        const alignTo = rev.imageTransform?.relativeTo ?? disciplineAlignTo;
+        const layerTransform = rev.imageTransform ?? disc.imageTransform;
+        const alignTo = layerTransform?.relativeTo ?? disciplineAlignTo;
 
         layers.push({
           id: makeId(drawingId, disciplineId, `rev:${rev.version}`),
@@ -201,7 +203,7 @@ export function buildRenderLayers(meta: MetadataParsed): RenderLayer[] {
           revisionVersion: rev.version,
           image: rev.image,
           alignToImage: alignTo,
-          imageTransform: rev.imageTransform,
+          imageTransform: layerTransform,
           polygon: rev.polygon,
           date: rev.date,
           description: rev.description,
